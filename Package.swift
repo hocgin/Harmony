@@ -13,13 +13,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift", from: "6.26.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", .upToNextMajor(from: "7.5.0")),
     ],
     targets: [
         .target(
             name: "Harmony",
             dependencies: [
-                .product(name: "GRDB", package: "GRDB.swift")
+                .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Harmony",
             resources: [.copy("PrivacyInfo.xcprivacy")]
