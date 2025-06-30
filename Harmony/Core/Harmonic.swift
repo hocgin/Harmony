@@ -55,7 +55,7 @@ public final class Harmonic {
     private let modelTypes: [any HRecord.Type]
     private let container: CKContainer
     private let userDefaults: UserDefaults
-    let database: DatabaseWriter
+    public let database: DatabaseWriter
 
     public var reader: DatabaseReader {
         database
