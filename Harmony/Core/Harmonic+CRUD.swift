@@ -5,13 +5,12 @@
 //  Created by Aaron Pearce on 11/06/23.
 //
 
+import CloudKit
 import Foundation
 import GRDB
-import CloudKit
 import os.log
 
 public extension Harmonic {
-
     func read<T>(_ block: (Database) throws -> T) throws -> T {
         try reader.read(block)
     }
@@ -27,15 +26,18 @@ public extension Harmonic {
             try record.insert(db)
         }
 
+        guard iCloudSyncEnabled else { return }
         queueSaves(for: [record])
     }
-    
+
     func create<T: HRecord>(records: [T]) async throws {
         try await database.write { db in
             try records.forEach {
                 try $0.insert(db)
             }
         }
+        
+        guard iCloudSyncEnabled else { return }
         queueSaves(for: records)
     }
 
@@ -44,6 +46,7 @@ public extension Harmonic {
             try record.save(db)
         }
 
+        guard iCloudSyncEnabled else { return }
         queueSaves(for: [record])
     }
 
@@ -54,6 +57,7 @@ public extension Harmonic {
             }
         }
 
+        guard iCloudSyncEnabled else { return }
         queueSaves(for: records)
     }
 
@@ -62,6 +66,7 @@ public extension Harmonic {
             try record.delete(db)
         }
 
+        guard iCloudSyncEnabled else { return }
         queueDeletions(for: [record])
     }
 
@@ -72,6 +77,7 @@ public extension Harmonic {
             }
         }
 
+        guard iCloudSyncEnabled else { return }
         queueDeletions(for: records)
     }
 
@@ -80,19 +86,20 @@ public extension Harmonic {
     /// Sometimes used during migration for schema changes.
     func pushAll<T: HRecord>(for recordType: T.Type) throws {
         let records = try read { db in
-            return try recordType.fetchAll(db)
+            try recordType.fetchAll(db)
         }
 
+        guard iCloudSyncEnabled else { return }
         queueSaves(for: records)
     }
 
     private func queueSaves(for records: [any HRecord]) {
         Logger.database.info("Queuing saves")
-        let pendingSaves: [CKSyncEngine.PendingRecordZoneChange] = records.map { 
+        let pendingSaves: [CKSyncEngine.PendingRecordZoneChange] = records.map {
             .saveRecord($0.recordID)
         }
 
-        self.syncEngine.state.add(pendingRecordZoneChanges: pendingSaves)
+        syncEngine.state.add(pendingRecordZoneChanges: pendingSaves)
     }
 
     private func queueDeletions(for records: [any HRecord]) {
@@ -101,14 +108,14 @@ public extension Harmonic {
             .deleteRecord($0.recordID)
         }
 
-        self.syncEngine.state.add(pendingRecordZoneChanges: pendingDeletions)
+        syncEngine.state.add(pendingRecordZoneChanges: pendingDeletions)
     }
 
     func sendChanges() async throws {
-        try await self.syncEngine.sendChanges()
+        try await syncEngine.sendChanges()
     }
 
     func fetchChanges() async throws {
-        try await self.syncEngine.fetchChanges()
+        try await syncEngine.fetchChanges()
     }
 }

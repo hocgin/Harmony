@@ -87,6 +87,10 @@ public final class Harmonic {
         }
     }
 
+    var iCloudSyncEnabled: Bool {
+        self.userDefaults.bool(forKey: Keys.iCloudSyncEnabled)
+    }
+
     public init(for modelTypes: [any HRecord.Type], configuration: Configuration, migrator: DatabaseMigrator) {
         self.modelTypes = modelTypes
         self.configuration = configuration
@@ -176,6 +180,8 @@ private extension Harmonic {
 
 extension Harmonic: CKSyncEngineDelegate {
     public func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
+        guard self.iCloudSyncEnabled else { return }
+
         Logger.database.log("Handling event \(event, privacy: .public)")
 
         switch event {
@@ -208,6 +214,7 @@ extension Harmonic: CKSyncEngineDelegate {
     }
 
     public func nextRecordZoneChangeBatch(_ context: CKSyncEngine.SendChangesContext, syncEngine: CKSyncEngine) async -> CKSyncEngine.RecordZoneChangeBatch? {
+        guard self.iCloudSyncEnabled else { return nil }
         Logger.database.info("Returning next record change batch for context: \(context.description, privacy: .public)")
 
         let scope = context.options.scope
@@ -245,10 +252,12 @@ extension Harmonic: CKSyncEngineDelegate {
 
 private extension Harmonic {
     func handleAccountChange(_ event: CKSyncEngine.Event.AccountChange) {
+        guard self.iCloudSyncEnabled else { return }
         Logger.database.info("Handle account change \(event, privacy: .public)")
     }
 
     func handleFetchedDatabaseChanges(_ event: CKSyncEngine.Event.FetchedDatabaseChanges) {
+        guard self.iCloudSyncEnabled else { return }
         Logger.database.info("Handle fetched database changes \(event, privacy: .public)")
 
         // If a zone was deleted, we should delete everything for that zone locally.
@@ -272,6 +281,7 @@ private extension Harmonic {
     }
 
     func handleFetchedRecordZoneChanges(_ event: CKSyncEngine.Event.FetchedRecordZoneChanges) {
+        guard self.iCloudSyncEnabled else { return }
         Logger.database.info("Handle fetched record zone changes \(event)")
 
         for modification in event.modifications {
@@ -315,6 +325,7 @@ private extension Harmonic {
     }
 
     func handleSentRecordZoneChanges(_ event: CKSyncEngine.Event.SentRecordZoneChanges) {
+        guard self.iCloudSyncEnabled else { return }
         Logger.database.info("Handle sent record zone changes \(event, privacy: .public)")
 
         // If we failed to save a record, we might want to retry depending on the error code.
