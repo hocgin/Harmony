@@ -70,7 +70,7 @@ public final class Harmonic {
         self.container.privateCloudDatabase
     }
 
-    private var lastStateSerialization: CKSyncEngine.State.Serialization? {
+    public var lastStateSerialization: CKSyncEngine.State.Serialization? {
         get {
             if let data = userDefaults.data(forKey: Keys.stateSerialization),
                let state = try? CKSyncEngine.State.Serialization.decode(data)
@@ -87,8 +87,13 @@ public final class Harmonic {
         }
     }
 
-    var iCloudSyncEnabled: Bool {
-        self.userDefaults.bool(forKey: Keys.iCloudSyncEnabled)
+    public var iCloudSyncEnabled: Bool {
+        get {
+            self.userDefaults.bool(forKey: Keys.iCloudSyncEnabled)
+        }
+        set {
+            self.userDefaults.set(newValue, forKey: Keys.iCloudSyncEnabled)
+        }
     }
 
     public init(for modelTypes: [any HRecord.Type], configuration: Configuration, migrator: DatabaseMigrator) {
