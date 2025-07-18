@@ -5,11 +5,11 @@
 //  Created by Aaron Pearce on 8/06/23.
 //
 
-import SwiftUI
 import CloudKit
-import os.log
-import GRDB
 import Combine
+import GRDB
+import os.log
+import SwiftUI
 
 ///
 /// Harmony becomes your central repository.
@@ -37,7 +37,6 @@ import Combine
 ///
 ///
 public final class Harmonic {
-
     // Containers
     // Shared or private?
     let configuration: Configuration
@@ -46,10 +45,10 @@ public final class Harmonic {
     /// This is lazily initialized. You can re-initialize the sync engine by setting `_syncEngine` to nil then calling `self.syncEngine`.
     var _syncEngine: CKSyncEngine?
     var syncEngine: CKSyncEngine {
-        if _syncEngine == nil {
+        if self._syncEngine == nil {
             self.initializeSyncEngine()
         }
-        return _syncEngine!
+        return self._syncEngine!
     }
 
     private let modelTypes: [any HRecord.Type]
@@ -58,23 +57,24 @@ public final class Harmonic {
     public let database: DatabaseWriter
 
     public var reader: DatabaseReader {
-        database
+        self.database
     }
 
     public var databaseChanged: DatabasePublishers.DatabaseRegion {
         DatabaseRegionObservation(
             tracking: .fullDatabase
-        ).publisher(in: database)
+        ).publisher(in: self.database)
     }
 
     private var privateDatabase: CKDatabase {
-        container.privateCloudDatabase
+        self.container.privateCloudDatabase
     }
 
     private var lastStateSerialization: CKSyncEngine.State.Serialization? {
         get {
             if let data = userDefaults.data(forKey: Keys.stateSerialization),
-               let state = try? CKSyncEngine.State.Serialization.decode(data) {
+               let state = try? CKSyncEngine.State.Serialization.decode(data)
+            {
                 return state
             } else {
                 return nil
@@ -82,7 +82,7 @@ public final class Harmonic {
         }
         set {
             if let data = try? newValue?.encode() {
-                userDefaults.set(data, forKey: Keys.stateSerialization)
+                self.userDefaults.set(data, forKey: Keys.stateSerialization)
             }
         }
     }
@@ -117,13 +117,13 @@ public final class Harmonic {
                 )
 
                 let initialMigrations = try self.database.read { db in
-                    return try migrator.appliedMigrations(db)
+                    try migrator.appliedMigrations(db)
                 }
 
                 try migrator.migrate(self.database)
 
                 let afterMigrations = try self.database.read { db in
-                    return try migrator.appliedMigrations(db)
+                    try migrator.appliedMigrations(db)
                 }
 
                 // If any migration occurred, we'll sync the whole database to ensure any new default values sync too.
@@ -145,7 +145,7 @@ public final class Harmonic {
                     }
                 }
 
-                try? await syncEngine.fetchChanges()
+                try? await self.syncEngine.fetchChanges()
             }
         }
     }
@@ -159,16 +159,15 @@ public final class Harmonic {
 }
 
 private extension Harmonic {
-
     func initializeSyncEngine() {
         var configuration = CKSyncEngine.Configuration(
             database: self.container.privateCloudDatabase,
             stateSerialization: self.lastStateSerialization,
             delegate: self
         )
-        configuration.automaticallySync = true //self.automaticallySync
+        configuration.automaticallySync = true // self.automaticallySync
         let syncEngine = CKSyncEngine(configuration)
-        _syncEngine = syncEngine
+        self._syncEngine = syncEngine
         Logger.database.log("Initialized sync engine: \(syncEngine)")
     }
 }
@@ -176,9 +175,7 @@ private extension Harmonic {
 // MARK: CKSyncEngineDelegate
 
 extension Harmonic: CKSyncEngineDelegate {
-
     public func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
-
         Logger.database.log("Handling event \(event, privacy: .public)")
 
         switch event {
@@ -218,14 +215,16 @@ extension Harmonic: CKSyncEngineDelegate {
 
         let batch = await CKSyncEngine.RecordZoneChangeBatch(pendingChanges: changes) { recordID in
             if let recordType = recordID.parsedRecordType,
-               let internalID = recordID.parsedRecordID {
+               let internalID = recordID.parsedRecordID
+            {
                 // We can sync this.
                 // Find this in our DB
                 if let modelType = modelType(for: recordType),
                    let record = try? await database.read({ db in
-                        let uuid = UUID(uuidString: internalID)
-                        return try modelType.fetchOne(db, key: uuid)
-                }) {
+                       let uuid = internalID
+                       return try modelType.fetchOne(db, key: uuid)
+                   })
+                {
                     return record.record
                 } else {
                     // Could be a deletion?
@@ -243,8 +242,8 @@ extension Harmonic: CKSyncEngineDelegate {
 }
 
 // MARK: - Event Handlers
-private extension Harmonic {
 
+private extension Harmonic {
     func handleAccountChange(_ event: CKSyncEngine.Event.AccountChange) {
         Logger.database.info("Handle account change \(event, privacy: .public)")
     }
@@ -255,21 +254,21 @@ private extension Harmonic {
         // If a zone was deleted, we should delete everything for that zone locally.
         #warning("Zone deletion is not handled!")
         /* Copied from the example sync sample from Apple
-        var needsToSave = false
-        for deletion in event.deletions {
-            switch deletion.zoneID.zoneName {
-            case Contact.zoneName:
-                self.appData.contacts = [:]
-                needsToSave = true
-            default:
-                Logger.database.info("Received deletion for unknown zone: \(deletion.zoneID)")
-            }
-        }
+         var needsToSave = false
+         for deletion in event.deletions {
+             switch deletion.zoneID.zoneName {
+             case Contact.zoneName:
+                 self.appData.contacts = [:]
+                 needsToSave = true
+             default:
+                 Logger.database.info("Received deletion for unknown zone: \(deletion.zoneID)")
+             }
+         }
 
-        if needsToSave {
-            try? self.persistLocalData() // This error should be handled, but we'll skip that for brevity in this sample app.
-        }
-         */
+         if needsToSave {
+             try? self.persistLocalData() // This error should be handled, but we'll skip that for brevity in this sample app.
+         }
+          */
     }
 
     func handleFetchedRecordZoneChanges(_ event: CKSyncEngine.Event.FetchedRecordZoneChanges) {
@@ -281,9 +280,10 @@ private extension Harmonic {
             // Otherwise, let's create a new local object.
             let record = modification.record
             if let id = record.recordID.parsedRecordID,
-               let modelType = modelType(for: record) {
-                try! database.write { db in
-                    if var localRecord = try modelType.fetchOne(db, key: UUID(uuidString: id)) {
+               let modelType = modelType(for: record)
+            {
+                try! self.database.write { db in
+                    if var localRecord = try modelType.fetchOne(db, key: id) {
                         try localRecord.updateChanges(db: db, ckRecord: record)
                     } else {
                         if let model = modelType.parseFrom(record: record) {
@@ -295,15 +295,15 @@ private extension Harmonic {
         }
 
         for deletion in event.deletions {
-
             // A record was deleted on the server, so let's remove it from our local persistence.
             let recordID = deletion.recordID
             if let recordType = recordID.parsedRecordType,
-                let id = recordID.parsedRecordID,
-               let modelType = modelType(for: recordType) {
+               let id = recordID.parsedRecordID,
+               let modelType = modelType(for: recordType)
+            {
                 // Find it locally and merge it
-                _ = try! database.write { db in
-                    try modelType.deleteOne(db, key: UUID(uuidString: id))
+                _ = try! self.database.write { db in
+                    try modelType.deleteOne(db, key: id)
                 }
             }
         }
@@ -324,9 +324,10 @@ private extension Harmonic {
         // Update the last known server record for each of the saved records.
         for savedRecord in event.savedRecords {
             if let id = savedRecord.recordID.parsedRecordID,
-               let modelType = modelType(for: savedRecord) {
-                try! database.write { db in
-                    var localRecord = try? modelType.fetchOne(db, key: UUID(uuidString: id))
+               let modelType = modelType(for: savedRecord)
+            {
+                try! self.database.write { db in
+                    var localRecord = try? modelType.fetchOne(db, key: id)
                     localRecord?.setLastKnownRecordIfNewer(savedRecord)
                     try! localRecord?.save(db)
                 }
@@ -337,13 +338,13 @@ private extension Harmonic {
         for failedRecordSave in event.failedRecordSaves {
             let failedRecord = failedRecordSave.record
             guard let id = failedRecord.recordID.parsedRecordID,
-                let modelType = modelType(for: failedRecord) else {
+                  let modelType = modelType(for: failedRecord)
+            else {
                 continue
             }
 
             var shouldClearServerRecord = false
             switch failedRecordSave.error.code {
-
             case .serverRecordChanged:
                 // Let's merge the record from the server into our own local copy.
                 // The `mergeFromServerRecord` function takes care of the conflict resolution.
@@ -352,8 +353,8 @@ private extension Harmonic {
                     continue
                 }
 
-                try? database.write { db in
-                    var localRecord = try modelType.fetchOne(db, key: UUID(uuidString: id))
+                try? self.database.write { db in
+                    var localRecord = try modelType.fetchOne(db, key: id)
                     // Merge from server...
                     try localRecord?.updateChanges(db: db, ckRecord: serverRecord)
                 }
@@ -388,8 +389,8 @@ private extension Harmonic {
             }
 
             if shouldClearServerRecord {
-                try? database.write { db in
-                    var localRecord = try? modelType.fetchOne(db, key: UUID(uuidString: id))
+                try? self.database.write { db in
+                    var localRecord = try? modelType.fetchOne(db, key: id)
                     // Merge from server...
                     localRecord?.archivedRecord = nil
                     try localRecord?.save(db)
@@ -407,13 +408,11 @@ private extension Harmonic {
     }
 }
 
-
 // MARK: - Model Type Helpers
 
 private extension Harmonic {
-
     func modelType(for record: CKRecord) -> (any HRecord.Type)? {
-        return modelType(for: record.recordType)
+        return self.modelType(for: record.recordType)
     }
 
     func modelType(for recordType: String) -> (any HRecord.Type)? {
