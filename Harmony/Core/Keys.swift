@@ -7,9 +7,9 @@
 
 import Foundation
 
-extension Harmonic {
+public extension Harmonic {
     enum Keys {
-        static let stateSerialization = "Harmony.State"
-        static let iCloudSyncEnabled = "iCloudSyncEnabled"
+        public static let stateSerialization = "Harmony.State"
+        public static let iCloudSyncEnabled = "iCloudSyncEnabled"
     }
 }
