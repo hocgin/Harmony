@@ -13,7 +13,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift", from: "6.26.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.6.0"),
     ],
     targets: [
         .target(
